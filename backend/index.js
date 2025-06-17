@@ -44,21 +44,22 @@ io.on('connection', (socket) => {
     socket.emit('chat-history', last50.reverse());
   });
 
-  socket.on('send-message', async ({ message }) => {
-    const username = socketUserMap.get(socket.id);
-    if (!username || !message?.trim()) return;
+  socket.on('send-message', async ({ username, message, timestamp }) => {
+  const socketUsername = socketUserMap.get(socket.id);
+  const finalUsername = username || socketUsername; // Use provided username or fallback
+  
+  if (!finalUsername || !message?.trim()) return;
 
-    const msgObj = {
-      id: uuidv4(),
-      username,
-      message: message.trim(),
-      timestamp: new Date()
-    };
+  const msgObj = {
+    id: uuidv4(),
+    username: finalUsername,
+    message: message.trim(),
+    timestamp: timestamp || new Date()
+  };
 
-    await Message.create(msgObj);
-    io.emit('receive-message', msgObj);
-  });
-
+  await Message.create(msgObj);
+  io.emit('receive-message', msgObj);
+});
   socket.on('typing', (username) => {
     socket.broadcast.emit('typing', username);
   });

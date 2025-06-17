@@ -3,7 +3,9 @@ import { Send, Smile } from 'lucide-react';
 import io from 'socket.io-client';
 import '../Styles/ChatApp.css';
 
-const socket = io('https://chatapp-eo5m.onrender.com');
+// Use environment variable or fallback to your deployed URL
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'https://chatapp-eo5m.onrender.com';
+const socket = io(SOCKET_URL);
 
 const emojis = ['😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🔥', '💯', '🎉', '😎', '🤩', '😊', '😢', '😮', '🙄', '😴', '🤗', '🤤', '😇'];
 
@@ -16,6 +18,7 @@ function ChatApp() {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [theme, setTheme] = useState('light');
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
   const chatEndRef = useRef(null);
   const emojiPickerRef = useRef(null);
 
@@ -29,6 +32,22 @@ function ChatApp() {
   }, [theme]);
 
   useEffect(() => {
+    // Connection status handlers
+    const handleConnect = () => {
+      console.log('Connected to server');
+      setConnectionStatus('connected');
+    };
+    
+    const handleDisconnect = () => {
+      console.log('Disconnected from server');
+      setConnectionStatus('disconnected');
+    };
+    
+    const handleConnectError = (error) => {
+      console.error('Connection error:', error);
+      setConnectionStatus('error');
+    };
+
     const handleReceiveMessage = (msg) => setChatHistory((prev) => [...prev, msg]);
     const handleChatHistory = (msgs) => setChatHistory(msgs);
     const handleUserConnected = (userList) => setOnlineUsers(new Set(userList));
@@ -36,6 +55,12 @@ function ChatApp() {
     const handleTyping = (user) => setTypingUsers((prev) => (!prev.includes(user) ? [...prev, user] : prev));
     const handleStopTyping = (user) => setTypingUsers((prev) => prev.filter((u) => u !== user));
 
+    // Connection events
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('connect_error', handleConnectError);
+    
+    // Chat events
     socket.on('receive-message', handleReceiveMessage);
     socket.on('chat-history', handleChatHistory);
     socket.on('user-connected', handleUserConnected);
@@ -44,6 +69,9 @@ function ChatApp() {
     socket.on('stop-typing', handleStopTyping);
 
     return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('connect_error', handleConnectError);
       socket.off('receive-message', handleReceiveMessage);
       socket.off('chat-history', handleChatHistory);
       socket.off('user-connected', handleUserConnected);
@@ -85,11 +113,15 @@ function ChatApp() {
 
   const handleJoin = () => {
     if (!inputName.trim()) return;
+    if (connectionStatus !== 'connected') {
+      alert('Please wait for connection to establish');
+      return;
+    }
     setUsername(inputName.trim());
   };
 
   const handleSend = () => {
-    if (message.trim()) {
+    if (message.trim() && connectionStatus === 'connected') {
       socket.emit('send-message', {
         username,
         message: message.trim(),
@@ -102,7 +134,7 @@ function ChatApp() {
   };
 
   const handleTyping = () => {
-    if (username) {
+    if (username && connectionStatus === 'connected') {
       socket.emit('typing', username);
       setTimeout(() => socket.emit('stop-typing', username), 1000);
     }
@@ -120,6 +152,12 @@ function ChatApp() {
           <div className="join-header">
             <h2>Join the Chat</h2>
             <p>Enter your name to start chatting</p>
+            {connectionStatus !== 'connected' && (
+              <div className="connection-status">
+                Status: {connectionStatus === 'connecting' ? 'Connecting...' : 
+                        connectionStatus === 'error' ? 'Connection Error' : 'Disconnected'}
+              </div>
+            )}
           </div>
           <div className="join-form">
             <input
@@ -129,7 +167,13 @@ function ChatApp() {
               className="join-input"
               onKeyUp={(e) => e.key === 'Enter' && handleJoin()}
             />
-            <button onClick={handleJoin} className="join-button">Join Chat</button>
+            <button 
+              onClick={handleJoin} 
+              className="join-button"
+              disabled={connectionStatus !== 'connected'}
+            >
+              {connectionStatus === 'connected' ? 'Join Chat' : 'Connecting...'}
+            </button>
           </div>
         </div>
       </div>
@@ -142,7 +186,11 @@ function ChatApp() {
         <div className="chat-header">
           <h2>Welcome, {username}!</h2>
           <div className="header-right">
-            <div className="status-text">{onlineUsers.size} user(s) online</div>
+            <div className="status-text">
+              {connectionStatus === 'connected' ? 
+                `${onlineUsers.size} user(s) online` : 
+                `Disconnected`}
+            </div>
             <button className="theme-toggle-button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
               {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
             </button>
@@ -151,6 +199,11 @@ function ChatApp() {
 
         <div className="chat-main">
           <div className="chat-messages">
+            {connectionStatus !== 'connected' && (
+              <div className="connection-warning">
+                Connection lost. Trying to reconnect...
+              </div>
+            )}
             {chatHistory.map((msg, idx) => {
               const isMyMessage = msg.username === username;
               return (
@@ -198,6 +251,7 @@ function ChatApp() {
                   onKeyUp={(e) => e.key === 'Enter' && handleSend()}
                   placeholder="Type a message..."
                   className="message-input"
+                  disabled={connectionStatus !== 'connected'}
                 />
                 <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="emoji-button">
                   <Smile size={20} />
@@ -212,7 +266,11 @@ function ChatApp() {
                   </div>
                 )}
               </div>
-              <button onClick={handleSend} className="send-button">
+              <button 
+                onClick={handleSend} 
+                className="send-button"
+                disabled={connectionStatus !== 'connected'}
+              >
                 <Send size={20} />
               </button>
             </div>
