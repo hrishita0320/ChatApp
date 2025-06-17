@@ -13,7 +13,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_ORIGIN || 'http://localhost:3000',
+    origin: process.env.CLIENT_ORIGIN || 'https://chatapp-frontend-t0wg.onrender.com',
     methods: ['GET', 'POST']
   },
   pingInterval: 10000,
