@@ -5,7 +5,10 @@ import '../Styles/ChatApp.css';
 
 // Use environment variable or fallback to your deployed URL
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'https://chatapp-eo5m.onrender.com';
-const socket = io(SOCKET_URL);
+const socket = io(SOCKET_URL, {
+  transports: ['websocket']
+});
+
 
 const emojis = ['😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🔥', '💯', '🎉', '😎', '🤩', '😊', '😢', '😮', '🙄', '😴', '🤗', '🤤', '😇'];
 
