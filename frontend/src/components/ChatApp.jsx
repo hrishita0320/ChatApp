@@ -3,7 +3,7 @@ import { Send, Smile } from 'lucide-react';
 import io from 'socket.io-client';
 import '../Styles/ChatApp.css';
 
-const socket = io('http://localhost:3001');
+const socket = io('https://chatapp-eo5m.onrender.com');
 
 const emojis = ['😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🔥', '💯', '🎉', '😎', '🤩', '😊', '😢', '😮', '🙄', '😴', '🤗', '🤤', '😇'];
 
